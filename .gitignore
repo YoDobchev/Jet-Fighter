@@ -1,0 +1,5 @@
+obj/
+src/include/*.gch
+Makefile
+main.d
+.vscode/

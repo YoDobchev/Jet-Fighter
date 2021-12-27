@@ -2,7 +2,7 @@
 
 // Screen dimensions
 const uint16_t SCREEN_WIDTH = 640;
-const uint16_t SCREEN_HEIGHT = 480;
+const uint16_t SCREEN_HEIGHT = 640;
 
 // Texture class
 class RTexture {
@@ -11,17 +11,20 @@ class RTexture {
 
         ~RTexture();
 
-        bool loadImage(std::string path);
+        bool loadSprite(std::string path);
 
-        void freeM();
+        void free();
 
-        void render(int x, int y, float angle, SDL_Point* center, SDL_RendererFlip flip);
+        void render(SDL_Rect* clip, SDL_Point* center, SDL_RendererFlip flip);
+
+  		void handleEvent(SDL_Event& ev);
+        
+        void move();
 
         int getWidth();
         int getHeight();
     private:
-        int rWidth;
-        int rHeight;
+        int rWidth, rHeight, posX, posY, velX, velY, deg, degV;
 
         SDL_Texture* rTexture;
 };

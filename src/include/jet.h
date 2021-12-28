@@ -15,7 +15,7 @@ class RTexture {
 
         void free();
 
-        void render(SDL_Rect* clip, SDL_Point* center, SDL_RendererFlip flip);
+        void render(SDL_Rect* clip = NULL, SDL_Point* center = NULL, SDL_RendererFlip flip = SDL_FLIP_NONE);
 
   		void handleEvent(SDL_Event& ev);
         
@@ -23,8 +23,12 @@ class RTexture {
 
         int getWidth();
         int getHeight();
+
+        static int jetCount;
     private:
-        int rWidth, rHeight, posX, posY, velX, velY, deg, degV;
+        int currentJetN, rWidth, rHeight, posX, posY, velX, velY, deg, degV;
+        float vel;
+        bool isBoosted;
 
         SDL_Texture* rTexture;
 };

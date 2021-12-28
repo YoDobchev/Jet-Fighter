@@ -5,9 +5,11 @@ SDL_Window* gWindow = NULL;
 
 SDL_Renderer* gRenderer = NULL;
 
+int RTexture::jetCount = 0;
+
 RTexture jet;
 
-RTexture player;
+RTexture jet2;
 
 RTexture::RTexture() {
     rTexture = NULL;
@@ -19,6 +21,10 @@ RTexture::RTexture() {
     velY = 0;
     deg = 0;
     degV = 0;
+    vel = 0;
+    isBoosted = false;
+    jetCount++;
+    currentJetN = jetCount;
 }
 void RTexture::free() {
     if (rTexture != NULL) {
@@ -31,6 +37,10 @@ void RTexture::free() {
         velY = 0;
         deg = 0;
         degV = 0;
+        vel = 0;
+        isBoosted = false;
+        jetCount--;
+        currentJetN = 0;
     }
 }
 RTexture::~RTexture() {
@@ -65,35 +75,48 @@ void RTexture::render(SDL_Rect* clip, SDL_Point* center, SDL_RendererFlip flip) 
 }
 void RTexture::handleEvent(SDL_Event& ev) {
     if(ev.type == SDL_KEYDOWN && ev.key.repeat == 0) {
-        std::cout << deg << std::endl;
         switch(ev.key.keysym.sym) {
-            case SDLK_UP:
-                velX += 2 * sin(deg);
-                velY += 2 * cos(deg) ;
-                break;
-            case SDLK_LEFT: degV -= 2; break;
-            case SDLK_RIGHT: degV += 2; break;
+            case SDLK_UP: if (currentJetN == 1) isBoosted = true; break;
+            case SDLK_LEFT: if (currentJetN == 1) degV -= 3; break;
+            case SDLK_RIGHT: if (currentJetN == 1) degV += 3; break;
+
+            case SDLK_w: if (currentJetN == 2) isBoosted = true; break;
+            case SDLK_a: if (currentJetN == 2) degV -= 3; break;
+            case SDLK_d: if (currentJetN == 2) degV += 3; break;
         }
     } else if(ev.type == SDL_KEYUP && ev.key.repeat == 0) {
         switch(ev.key.keysym.sym) {
-            case SDLK_UP:
-                velX = 0;
-                velY = 0;
-                break;
-            case SDLK_LEFT: degV += 2; break;
-            case SDLK_RIGHT: degV -= 2; break;
+            case SDLK_UP: if (currentJetN == 1) isBoosted = false; break;
+            case SDLK_LEFT: if (currentJetN == 1) degV += 3; break;
+            case SDLK_RIGHT: if (currentJetN == 1) degV -= 3; break;
+
+            case SDLK_w: if (currentJetN == 2) isBoosted = false; break;
+            case SDLK_a: if (currentJetN == 2) degV += 3; break;
+            case SDLK_d: if (currentJetN == 2) degV -= 3; break;
         }
     }
 }
 void RTexture::move() {
+    if (isBoosted && vel <= 6) {
+        vel += 0.1f;
+    } else if (vel > 0) {
+        vel -= 0.05f;
+    }
+    float radians = deg * M_PI/180;
+    velX = vel * sin(radians);
+    velY = -vel * cos(radians);
     posX += velX;
     posY += velY;
-    if (deg >= 360 && deg >= 0)
-        deg -= 360;
-    if (deg <= 360 && deg <= 0)
-        deg += 360;
+    if (posX < -rWidth/2)
+        posX = SCREEN_WIDTH + rWidth/2;
+    if (posX > SCREEN_WIDTH + rWidth/2)
+        posX = -rWidth/2;
+
+    if (posY < -rHeight/2)
+        posY = SCREEN_HEIGHT + rHeight/2;
+    if (posY > SCREEN_HEIGHT + rHeight/2)
+        posY = -rHeight/2;
     deg += degV;
-    std::cout << deg << " | "  << sin(deg) << " | " << cos(deg) << std::endl;
 }
 int RTexture::getWidth() {
 	return rWidth;
@@ -141,10 +164,15 @@ bool loadMedia() {
         std::cout << "Failed to load texture!" << std::endl;
         success = false;
     }
+    if(!jet2.loadSprite("src/media/jet.png")) {
+        std::cout << "Failed to load texture!" << std::endl;
+        success = false;
+    }
     return success;
 }
 void close() {
     jet.free();
+    jet2.free();
     SDL_DestroyRenderer(gRenderer);
 	SDL_DestroyWindow(gWindow);
 	gWindow = NULL;
@@ -163,16 +191,19 @@ int main(int argc, char* args[]) {
                 SDL_Event ev;
                 int right = 0;
                 while(!quit) {
-                    while(SDL_PollEvent( &ev ) != 0) {
+                    while(SDL_PollEvent(&ev) != 0) {
                         if(ev.type == SDL_QUIT) {
                             quit = true;
                         }
                         jet.handleEvent(ev);
+                        jet2.handleEvent(ev);
                     }
                     jet.move();
+                    jet2.move();
                     SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
                     SDL_RenderClear(gRenderer);
-                    jet.render(NULL, NULL, SDL_FLIP_NONE);
+                    jet.render();
+                    jet2.render();
                     SDL_RenderPresent(gRenderer);   
                 }
             }

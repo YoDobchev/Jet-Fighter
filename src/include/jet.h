@@ -5,32 +5,49 @@ const uint16_t SCREEN_WIDTH = 640;
 const uint16_t SCREEN_HEIGHT = 640;
 
 // Texture class
-class RTexture {
+struct RTexture {
+    RTexture();
+
+    bool loadSprite(std::string path);
+
+    virtual void free();
+
+    void render(SDL_Rect* clip = NULL, SDL_Point* center = NULL, SDL_RendererFlip flip = SDL_FLIP_NONE);
+
+    int getWidth();
+    int getHeight();
+
+    int rWidth, rHeight, posX, posY, deg;
+
+    SDL_Texture* rTexture;
+};
+class Jet: public RTexture {
     public:
-        RTexture();
+        Jet();
+    
+        ~Jet();
 
-        ~RTexture();
+        void free() override;
 
-        bool loadSprite(std::string path);
+        void handleEvent(SDL_Event& ev);
 
-        void free();
-
-        void render(SDL_Rect* clip = NULL, SDL_Point* center = NULL, SDL_RendererFlip flip = SDL_FLIP_NONE);
-
-  		void handleEvent(SDL_Event& ev);
-        
         void move();
-
-        int getWidth();
-        int getHeight();
 
         static int jetCount;
     private:
-        int currentJetN, rWidth, rHeight, posX, posY, velX, velY, deg, degV;
+        int currentJetN, velX, velY, degV;
         float vel;
         bool isBoosted;
+};
+class Bullet: public RTexture {
+    public:
+        Bullet(int posX, int posY, int deg, int velX, int velY);
 
-        SDL_Texture* rTexture;
+        void free() override;
+
+        void move();
+    private:
+        int velX, velY;
 };
 
 bool init();

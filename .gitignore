@@ -3,3 +3,4 @@ src/include/*.gch
 Makefile
 main.d
 .vscode/
+notes.txt

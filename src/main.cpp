@@ -5,11 +5,11 @@ SDL_Window* gWindow = NULL;
 
 SDL_Renderer* gRenderer = NULL;
 
-int RTexture::jetCount = 0;
+int Jet::jetCount = 0;
 
-RTexture jet;
+std::vector<Jet> jets;
 
-RTexture jet2;
+std::vector<Bullet> bullets;
 
 RTexture::RTexture() {
     rTexture = NULL;
@@ -17,14 +17,7 @@ RTexture::RTexture() {
     rHeight = 0;
     posX = 300;
     posY = 300;
-    velX = 0;
-    velY = 0;
     deg = 0;
-    degV = 0;
-    vel = 0;
-    isBoosted = false;
-    jetCount++;
-    currentJetN = jetCount;
 }
 void RTexture::free() {
     if (rTexture != NULL) {
@@ -33,21 +26,10 @@ void RTexture::free() {
         rHeight = 0;
         posX = 0;
         posY = 0;
-        velX = 0;
-        velY = 0;
         deg = 0;
-        degV = 0;
-        vel = 0;
-        isBoosted = false;
-        jetCount--;
-        currentJetN = 0;
     }
 }
-RTexture::~RTexture() {
-    free();
-}
 bool RTexture::loadSprite(std::string path) {
-    free();
     SDL_Texture* finalTexture = NULL;
     SDL_Surface* loadFromSurface = IMG_Load(path.c_str());
     if (loadFromSurface == NULL) {
@@ -73,16 +55,70 @@ void RTexture::render(SDL_Rect* clip, SDL_Point* center, SDL_RendererFlip flip) 
     }
     SDL_RenderCopyEx(gRenderer, rTexture, clip, &renderRect, deg, center, flip);
 }
-void RTexture::handleEvent(SDL_Event& ev) {
+
+int RTexture::getWidth() {
+	return rWidth;
+}
+
+int RTexture::getHeight() {
+	return rHeight;
+}
+
+Jet::Jet() {
+    currentJetN = 0;
+    velX = 0;
+    velY = 0;
+    degV = 0;
+    vel = 0;
+    isBoosted = false;
+    jetCount++;
+    currentJetN = jetCount;
+}
+Jet::~Jet() {
+    free();
+}
+void Jet::free() {
+    if (rTexture != NULL) {
+        rTexture = NULL;
+        rWidth = 0;
+        rHeight = 0;
+        posX = 0;
+        posY = 0;
+        deg = 0;
+        currentJetN = 0;
+        velX = 0;
+        velY = 0;
+        degV = 0;
+        vel = 0;
+        isBoosted = false;
+        jetCount--;
+        currentJetN = 0;
+    }
+}
+void Jet::handleEvent(SDL_Event& ev) {
     if(ev.type == SDL_KEYDOWN && ev.key.repeat == 0) {
         switch(ev.key.keysym.sym) {
             case SDLK_UP: if (currentJetN == 1) isBoosted = true; break;
             case SDLK_LEFT: if (currentJetN == 1) degV -= 3; break;
             case SDLK_RIGHT: if (currentJetN == 1) degV += 3; break;
+            case SDLK_KP_0:
+                if (currentJetN == 1) {
+                    float radians = deg * M_PI/180;
+                    bullets.emplace_back(posX, posY, deg, 7 * sin(radians), -7 * cos(radians));
+                    bullets[bullets.size() - 1].loadSprite("src/media/bullet.png");
+                }
+                break;
 
             case SDLK_w: if (currentJetN == 2) isBoosted = true; break;
             case SDLK_a: if (currentJetN == 2) degV -= 3; break;
             case SDLK_d: if (currentJetN == 2) degV += 3; break;
+            case SDLK_SPACE: 
+                if (currentJetN == 2) {
+                    float radians = deg * M_PI/180;
+                    bullets.emplace_back(posX, posY, deg, 7 * sin(radians), -7 * cos(radians));
+                    bullets[bullets.size() - 1].loadSprite("src/media/bullet.png");
+                }
+                break;
         }
     } else if(ev.type == SDL_KEYUP && ev.key.repeat == 0) {
         switch(ev.key.keysym.sym) {
@@ -96,7 +132,7 @@ void RTexture::handleEvent(SDL_Event& ev) {
         }
     }
 }
-void RTexture::move() {
+void Jet::move() {
     if (isBoosted && vel <= 6) {
         vel += 0.1f;
     } else if (vel > 0) {
@@ -118,16 +154,30 @@ void RTexture::move() {
         posY = -rHeight/2;
     deg += degV;
 }
-int RTexture::getWidth() {
-	return rWidth;
+void Bullet::free() {
+     if (rTexture != NULL) {
+        rTexture = NULL;
+        rWidth = 0;
+        rHeight = 0;
+        posX = 0;
+        posY = 0;
+        deg = 0;
+        velX = 0;
+        velY = 0;
+        bullets.erase(bullets.begin());
+     }
 }
-
-int RTexture::getHeight() {
-	return rHeight;
+Bullet::Bullet(int posX, int posY, int deg, int velX, int velY) {
+    this->posX = posX; this->posY = posY; this->deg = deg; this->velX = velX; this->velY = velY;
+}
+void Bullet::move() {
+    posX += velX;
+    posY += velY;
+    if (posX < -rWidth || posX > SCREEN_WIDTH + rWidth || posY < -rHeight || posY > SCREEN_HEIGHT + rHeight)
+        free();
 }
 bool init() {
     bool success = true;
-
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cout << SDL_GetError() << std::endl;
         success = false;
@@ -152,6 +202,9 @@ bool init() {
                     std::cout << SDL_GetError() << std::endl;
                     success = false;
                 }
+                jets.reserve(2);
+                jets.emplace_back();
+                jets.emplace_back();
             }
         }
     }
@@ -160,19 +213,21 @@ bool init() {
 }
 bool loadMedia() {
     bool success = true;
-    if(!jet.loadSprite("src/media/jet.png")) {
-        std::cout << "Failed to load texture!" << std::endl;
-        success = false;
-    }
-    if(!jet2.loadSprite("src/media/jet.png")) {
-        std::cout << "Failed to load texture!" << std::endl;
-        success = false;
+    for (Jet& jet: jets) {
+        if(!jet.loadSprite("src/media/jet.png")) {
+            std::cout << "Failed to load texture!" << std::endl;
+            success = false;
+        }
     }
     return success;
 }
 void close() {
-    jet.free();
-    jet2.free();
+    for (Jet& jet: jets) {
+        jet.free();
+    }
+    for (Bullet& bullet: bullets) {
+        bullet.free();
+    }
     SDL_DestroyRenderer(gRenderer);
 	SDL_DestroyWindow(gWindow);
 	gWindow = NULL;
@@ -195,15 +250,24 @@ int main(int argc, char* args[]) {
                         if(ev.type == SDL_QUIT) {
                             quit = true;
                         }
-                        jet.handleEvent(ev);
-                        jet2.handleEvent(ev);
+                        for (Jet& jet: jets) {
+                            jet.handleEvent(ev);
+                        }
                     }
-                    jet.move();
-                    jet2.move();
+                    for (Jet& jet: jets) {
+                        jet.move();
+                    }
+                    for (Bullet& bullet: bullets) {
+                        bullet.move();
+                    }
                     SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
                     SDL_RenderClear(gRenderer);
-                    jet.render();
-                    jet2.render();
+                    for (Jet& jet: jets) {
+                        jet.render();
+                    }
+                    for (Bullet& bullet: bullets) {
+                        bullet.render();
+                    }
                     SDL_RenderPresent(gRenderer);   
                 }
             }

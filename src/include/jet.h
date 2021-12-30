@@ -21,6 +21,20 @@ struct RTexture {
 
     SDL_Texture* rTexture;
 };
+
+class Bullet: public RTexture {
+    public:
+        Bullet(int posX, int posY, int deg, int velX, int velY, int jetN);
+
+        void free() override;
+
+        void move();
+
+        SDL_Rect boxCollider;
+    private:
+        int jetN;
+        float velX, velY;
+};
 class Jet: public RTexture {
     public:
         Jet();
@@ -32,26 +46,23 @@ class Jet: public RTexture {
         void handleEvent(SDL_Event& ev);
 
         void move();
+        
+        std::vector<Bullet> bullets;
 
         static int jetCount;
+
+        SDL_Rect boxCollider;
+
+        int currentJetN;
     private:
-        int currentJetN, velX, velY, degV;
+        int velX, velY, degV;
         float vel;
         bool isBoosted;
 };
-class Bullet: public RTexture {
-    public:
-        Bullet(int posX, int posY, int deg, int velX, int velY);
-
-        void free() override;
-
-        void move();
-    private:
-        int velX, velY;
-};
-
 bool init();
 
 bool loadMedia();
+
+bool checkCollision(SDL_Rect a, SDL_Rect b);
 
 void close();

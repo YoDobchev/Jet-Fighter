@@ -9,14 +9,12 @@ int Jet::jetCount = 0;
 
 std::vector<Jet> jets;
 
-std::vector<Bullet> bullets;
-
 RTexture::RTexture() {
     rTexture = NULL;
     rWidth = 0;
     rHeight = 0;
-    posX = 300;
-    posY = 300;
+    posX = 0;
+    posY = 0;
     deg = 0;
 }
 void RTexture::free() {
@@ -65,6 +63,8 @@ int RTexture::getHeight() {
 }
 
 Jet::Jet() {
+    posX = 300;
+    posY = 300;
     currentJetN = 0;
     velX = 0;
     velY = 0;
@@ -73,6 +73,8 @@ Jet::Jet() {
     isBoosted = false;
     jetCount++;
     currentJetN = jetCount;
+    boxCollider.w = 22;
+    boxCollider.h = 16;
 }
 Jet::~Jet() {
     free();
@@ -104,8 +106,8 @@ void Jet::handleEvent(SDL_Event& ev) {
             case SDLK_KP_0:
                 if (currentJetN == 1) {
                     float radians = deg * M_PI/180;
-                    bullets.emplace_back(posX, posY, deg, 7 * sin(radians), -7 * cos(radians));
-                    bullets[bullets.size() - 1].loadSprite("src/media/bullet.png");
+                    this->bullets.emplace_back(posX, posY, deg, 7 * sin(radians), -7 * cos(radians), currentJetN - 1);
+                    this->bullets[this->bullets.size() - 1].loadSprite("src/media/bullet.png");
                 }
                 break;
 
@@ -115,8 +117,8 @@ void Jet::handleEvent(SDL_Event& ev) {
             case SDLK_SPACE: 
                 if (currentJetN == 2) {
                     float radians = deg * M_PI/180;
-                    bullets.emplace_back(posX, posY, deg, 7 * sin(radians), -7 * cos(radians));
-                    bullets[bullets.size() - 1].loadSprite("src/media/bullet.png");
+                    this->bullets.emplace_back(posX, posY, deg, 7 * sin(radians), -7 * cos(radians), currentJetN - 1);
+                    this->bullets[this->bullets.size() - 1].loadSprite("src/media/bullet.png");
                 }
                 break;
         }
@@ -143,6 +145,8 @@ void Jet::move() {
     velY = -vel * cos(radians);
     posX += velX;
     posY += velY;
+    boxCollider.x = posX + 1;
+    boxCollider.y = posY;
     if (posX < -rWidth/2)
         posX = SCREEN_WIDTH + rWidth/2;
     if (posX > SCREEN_WIDTH + rWidth/2)
@@ -164,15 +168,22 @@ void Bullet::free() {
         deg = 0;
         velX = 0;
         velY = 0;
-        bullets.erase(bullets.begin());
+        jets[jetN].bullets.erase(jets[jetN].bullets.begin());
      }
 }
-Bullet::Bullet(int posX, int posY, int deg, int velX, int velY) {
-    this->posX = posX; this->posY = posY; this->deg = deg; this->velX = velX; this->velY = velY;
+Bullet::Bullet(int posX, int posY, int deg, int velX, int velY, int jetN) {
+    this->deg = deg; this->velX = velX; this->velY = velY; this->jetN = jetN;
+    float radians = deg * M_PI/180;
+    this->posX = (posX + jets[jetN].rWidth/2 + jets[jetN].rHeight/2 * sin(radians)) - 3;
+    this->posY = (posY + jets[jetN].rHeight/2 - jets[jetN].rHeight/2 * cos(radians)) - 3;
+    boxCollider.w = 6;
+    boxCollider.h = 6;
 }
 void Bullet::move() {
     posX += velX;
     posY += velY;
+    boxCollider.x = posX;
+    boxCollider.y = posY;  
     if (posX < -rWidth || posX > SCREEN_WIDTH + rWidth || posY < -rHeight || posY > SCREEN_HEIGHT + rHeight)
         free();
 }
@@ -221,12 +232,17 @@ bool loadMedia() {
     }
     return success;
 }
+bool checkCollision(SDL_Rect a, SDL_Rect b) {
+    if (a.y + a.h <= b.y || a.y >= b.y + b.h || a.x + a.w <= b.x || a.x >= b.x + b.w)
+        return false;
+    return true;
+}
 void close() {
     for (Jet& jet: jets) {
         jet.free();
-    }
-    for (Bullet& bullet: bullets) {
-        bullet.free();
+        for (Bullet& bullet: jet.bullets) {
+            bullet.free();
+        }
     }
     SDL_DestroyRenderer(gRenderer);
 	SDL_DestroyWindow(gWindow);
@@ -256,17 +272,34 @@ int main(int argc, char* args[]) {
                     }
                     for (Jet& jet: jets) {
                         jet.move();
-                    }
-                    for (Bullet& bullet: bullets) {
-                        bullet.move();
+                        for (Bullet& bullet: jet.bullets) {
+                            bullet.move();
+                            
+                        }
                     }
                     SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
                     SDL_RenderClear(gRenderer);
                     for (Jet& jet: jets) {
-                        jet.render();
+                        for(Jet& otherJet: jets) {
+                            if (otherJet.currentJetN != jet.currentJetN) {
+                                for (Bullet& bullet: otherJet.bullets) {
+                                    if (checkCollision(jet.boxCollider, bullet.boxCollider))
+                                        bullet.free();
+                                }
+                            }
+                        }
                     }
-                    for (Bullet& bullet: bullets) {
-                        bullet.render();
+                    for (Jet& jet: jets) {
+                        jet.render();
+                        // SDL_SetRenderDrawColor( gRenderer, 0x00, 0x00, 0x00, 0xFF );		
+                        // SDL_RenderDrawRect(gRenderer, &jet.boxCollider);
+                        // SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xFF, 0xFF );
+                        for (Bullet& bullet: jet.bullets) {
+                            bullet.render();
+                            // SDL_SetRenderDrawColor( gRenderer, 0x00, 0x00, 0x00, 0xFF );		
+                            // SDL_RenderDrawRect(gRenderer, &bullet.boxCollider);
+                            // SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xFF, 0xFF );
+                        }
                     }
                     SDL_RenderPresent(gRenderer);   
                 }

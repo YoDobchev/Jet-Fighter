@@ -35,6 +35,7 @@ class Bullet: public RTexture {
         int jetN;
         float velX, velY;
 };
+
 class Jet: public RTexture {
     public:
         Jet();
@@ -53,12 +54,17 @@ class Jet: public RTexture {
 
         SDL_Rect boxCollider;
 
-        int currentJetN;
+        int currentJetN, score;
     private:
         int velX, velY, degV;
         float vel;
         bool isBoosted;
 };
+
+struct Font: public RTexture {
+    bool loadFont(std::string text);
+};
+
 bool init();
 
 bool loadMedia();

@@ -5,6 +5,10 @@ SDL_Window* gWindow = NULL;
 
 SDL_Renderer* gRenderer = NULL;
 
+TTF_Font* glFont = NULL;
+
+Font score;
+
 int Jet::jetCount = 0;
 
 std::vector<Jet> jets;
@@ -17,6 +21,7 @@ RTexture::RTexture() {
     posY = 0;
     deg = 0;
 }
+
 void RTexture::free() {
     if (rTexture != NULL) {
         rTexture = NULL;
@@ -27,6 +32,7 @@ void RTexture::free() {
         deg = 0;
     }
 }
+
 bool RTexture::loadSprite(std::string path) {
     SDL_Texture* finalTexture = NULL;
     SDL_Surface* loadFromSurface = IMG_Load(path.c_str());
@@ -45,6 +51,7 @@ bool RTexture::loadSprite(std::string path) {
     rTexture = finalTexture;
     return rTexture != NULL;   
 }
+
 void RTexture::render(SDL_Rect* clip, SDL_Point* center, SDL_RendererFlip flip) {
     SDL_Rect renderRect = {posX, posY, rWidth, rHeight};
     if (clip != NULL) {
@@ -75,10 +82,13 @@ Jet::Jet() {
     currentJetN = jetCount;
     boxCollider.w = 22;
     boxCollider.h = 16;
+    score = 0;
 }
+
 Jet::~Jet() {
     free();
 }
+
 void Jet::free() {
     if (rTexture != NULL) {
         rTexture = NULL;
@@ -97,6 +107,7 @@ void Jet::free() {
         currentJetN = 0;
     }
 }
+
 void Jet::handleEvent(SDL_Event& ev) {
     if(ev.type == SDL_KEYDOWN && ev.key.repeat == 0) {
         switch(ev.key.keysym.sym) {
@@ -134,6 +145,7 @@ void Jet::handleEvent(SDL_Event& ev) {
         }
     }
 }
+
 void Jet::move() {
     if (isBoosted && vel <= 6) {
         vel += 0.1f;
@@ -158,6 +170,7 @@ void Jet::move() {
         posY = -rHeight/2;
     deg += degV;
 }
+
 void Bullet::free() {
      if (rTexture != NULL) {
         rTexture = NULL;
@@ -171,6 +184,7 @@ void Bullet::free() {
         jets[jetN].bullets.erase(jets[jetN].bullets.begin());
      }
 }
+
 Bullet::Bullet(int posX, int posY, int deg, int velX, int velY, int jetN) {
     this->deg = deg; this->velX = velX; this->velY = velY; this->jetN = jetN;
     float radians = deg * M_PI/180;
@@ -179,6 +193,7 @@ Bullet::Bullet(int posX, int posY, int deg, int velX, int velY, int jetN) {
     boxCollider.w = 6;
     boxCollider.h = 6;
 }
+
 void Bullet::move() {
     posX += velX;
     posY += velY;
@@ -187,6 +202,34 @@ void Bullet::move() {
     if (posX < -rWidth || posX > SCREEN_WIDTH + rWidth || posY < -rHeight || posY > SCREEN_HEIGHT + rHeight)
         free();
 }
+
+bool Font::loadFont(std::string text) {
+    SDL_Surface* textSurface = TTF_RenderText_Solid(glFont, text.c_str(), {0, 0, 0});
+    if (textSurface == NULL) {
+        std::cout << SDL_GetError() << std::endl;
+    } else {
+        rTexture = SDL_CreateTextureFromSurface(gRenderer, textSurface);
+        if (rTexture == NULL) {
+            std::cout << SDL_GetError() << std::endl;
+        } else {
+            rWidth = textSurface->w;
+            rHeight = textSurface->h;
+        }
+        SDL_FreeSurface(textSurface);
+    }
+    return rTexture != NULL;
+}
+
+std::string formatScores() {
+    std::string finalScore = "";
+    for (int i = 0; i < Jet::jetCount; ++i) {
+        finalScore += std::to_string(jets[i].score); 
+        if (i != Jet::jetCount - 1) 
+            finalScore += " - ";
+    }
+    return finalScore;
+}
+
 bool init() {
     bool success = true;
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -213,6 +256,10 @@ bool init() {
                     std::cout << SDL_GetError() << std::endl;
                     success = false;
                 }
+                if (TTF_Init() == -1) {
+                    std::cout << SDL_GetError() << std::endl;
+					success = false;
+				}
                 jets.reserve(2);
                 jets.emplace_back();
                 jets.emplace_back();
@@ -222,6 +269,7 @@ bool init() {
 
     return success;
 }
+
 bool loadMedia() {
     bool success = true;
     for (Jet& jet: jets) {
@@ -230,13 +278,24 @@ bool loadMedia() {
             success = false;
         }
     }
+    glFont = TTF_OpenFont("src/fonts/LibreFranklin-VariableFont_wght.ttf", 80);
+    if (glFont == NULL) {
+        std::cout << SDL_GetError() << std::endl;
+        success = false;
+    } else {
+        if (!score.loadFont("0 - 0")) {
+            std::cout << SDL_GetError() << std::endl;
+            success = false;
+        }
+    }
+
     return success;
 }
+
 bool checkCollision(SDL_Rect a, SDL_Rect b) {
-    if (a.y + a.h <= b.y || a.y >= b.y + b.h || a.x + a.w <= b.x || a.x >= b.x + b.w)
-        return false;
-    return true;
+    return !(a.y + a.h <= b.y || a.y >= b.y + b.h || a.x + a.w <= b.x || a.x >= b.x + b.w);
 }
+
 void close() {
     for (Jet& jet: jets) {
         jet.free();
@@ -249,8 +308,10 @@ void close() {
 	gWindow = NULL;
 	gRenderer = NULL;
     IMG_Quit();
+    TTF_Quit();
 	SDL_Quit();
 }
+
 int main(int argc, char* args[]) {
         if (!init()) {
             std::cout << "Failed to initialize!" << std::endl;
@@ -260,7 +321,6 @@ int main(int argc, char* args[]) {
             } else {
                 bool quit;
                 SDL_Event ev;
-                int right = 0;
                 while(!quit) {
                     while(SDL_PollEvent(&ev) != 0) {
                         if(ev.type == SDL_QUIT) {
@@ -279,26 +339,27 @@ int main(int argc, char* args[]) {
                     }
                     SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
                     SDL_RenderClear(gRenderer);
+                    score.render();
                     for (Jet& jet: jets) {
                         for(Jet& otherJet: jets) {
                             if (otherJet.currentJetN != jet.currentJetN) {
                                 for (Bullet& bullet: otherJet.bullets) {
-                                    if (checkCollision(jet.boxCollider, bullet.boxCollider))
+                                    if (checkCollision(jet.boxCollider, bullet.boxCollider)) {
                                         bullet.free();
+                                        jet.score++;
+                                        score.loadFont(formatScores());
+                                    }
                                 }
                             }
                         }
                     }
                     for (Jet& jet: jets) {
                         jet.render();
-                        // SDL_SetRenderDrawColor( gRenderer, 0x00, 0x00, 0x00, 0xFF );		
+                        // SDL_SetRenderDrawColor( gRenderer, 0x00, 0x00, 0x00, 0xFF );
                         // SDL_RenderDrawRect(gRenderer, &jet.boxCollider);
                         // SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xFF, 0xFF );
                         for (Bullet& bullet: jet.bullets) {
                             bullet.render();
-                            // SDL_SetRenderDrawColor( gRenderer, 0x00, 0x00, 0x00, 0xFF );		
-                            // SDL_RenderDrawRect(gRenderer, &bullet.boxCollider);
-                            // SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xFF, 0xFF );
                         }
                     }
                     SDL_RenderPresent(gRenderer);   

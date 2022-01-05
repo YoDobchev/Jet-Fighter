@@ -5,8 +5,8 @@ const uint16_t SCREEN_WIDTH = 640;
 const uint16_t SCREEN_HEIGHT = 640;
 
 // Texture class
-struct RTexture {
-    RTexture();
+struct Entity {
+    Entity();
 
     bool loadSprite(std::string path);
 
@@ -22,7 +22,7 @@ struct RTexture {
     SDL_Texture* rTexture;
 };
 
-class Bullet: public RTexture {
+class Bullet: public Entity {
     public:
         Bullet(int posX, int posY, int deg, int velX, int velY, int jetN);
 
@@ -36,7 +36,7 @@ class Bullet: public RTexture {
         float velX, velY;
 };
 
-class Jet: public RTexture {
+class Jet: public Entity {
     public:
         Jet();
     
@@ -61,9 +61,11 @@ class Jet: public RTexture {
         bool isBoosted;
 };
 
-struct Font: public RTexture {
+struct Font: public Entity {
     bool loadFont(std::string text);
 };
+
+std::string formatScores();
 
 bool init();
 

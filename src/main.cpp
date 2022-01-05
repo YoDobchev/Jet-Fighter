@@ -1,3 +1,50 @@
+/* 
+TODO:
+    | | Players
+        |x| Basics
+        | | Distinguish players based on different textures, colors, etc.
+    |x| Movement
+    |x| Shooting
+    | | Collision
+        |x| Basics
+        | | More complex collision detection with the Separating Axis Theorem (SAT)
+    |x| TTF
+    | | Asteroids
+        | | Movement/Rotation
+        | | Texture
+        | | Ability to break into smaller pieces
+            | | Logic
+            | | Textures
+        | | Chance of a power-up upon explosion
+    | | Sound
+        | | Sound effects
+            | | Bullet
+                | | Bullet spawn
+                | | Bullet explosion
+            | | Jet
+                | | Jet explosion
+                | | Jet crash
+            | | Asteroid explosion
+        | | OST
+    | | Animations
+        | | Bullet explosion
+        | | Jet explosion
+        | | Asteroid explosion
+    | | Start-up menu
+    | | Multiplayer
+        |x| Local (with only one keyboard)
+        | | Network
+            | | Basics
+            | | 4 player capacity
+    | | Singleplayer
+        | | AI
+            | | Basics
+            | | Difficulty options
+    | | Power-ups
+    | | Gamemodes
+    | | Settings
+*/
+
 // Include every header required.
 #include "include/includes.h"
 
@@ -13,7 +60,7 @@ int Jet::jetCount = 0;
 
 std::vector<Jet> jets;
 
-RTexture::RTexture() {
+Entity::Entity() {
     rTexture = NULL;
     rWidth = 0;
     rHeight = 0;
@@ -22,7 +69,7 @@ RTexture::RTexture() {
     deg = 0;
 }
 
-void RTexture::free() {
+void Entity::free() {
     if (rTexture != NULL) {
         rTexture = NULL;
         rWidth = 0;
@@ -33,7 +80,7 @@ void RTexture::free() {
     }
 }
 
-bool RTexture::loadSprite(std::string path) {
+bool Entity::loadSprite(std::string path) {
     SDL_Texture* finalTexture = NULL;
     SDL_Surface* loadFromSurface = IMG_Load(path.c_str());
     if (loadFromSurface == NULL) {
@@ -52,7 +99,7 @@ bool RTexture::loadSprite(std::string path) {
     return rTexture != NULL;   
 }
 
-void RTexture::render(SDL_Rect* clip, SDL_Point* center, SDL_RendererFlip flip) {
+void Entity::render(SDL_Rect* clip, SDL_Point* center, SDL_RendererFlip flip) {
     SDL_Rect renderRect = {posX, posY, rWidth, rHeight};
     if (clip != NULL) {
         renderRect.w = clip->w;
@@ -61,11 +108,11 @@ void RTexture::render(SDL_Rect* clip, SDL_Point* center, SDL_RendererFlip flip) 
     SDL_RenderCopyEx(gRenderer, rTexture, clip, &renderRect, deg, center, flip);
 }
 
-int RTexture::getWidth() {
+int Entity::getWidth() {
 	return rWidth;
 }
 
-int RTexture::getHeight() {
+int Entity::getHeight() {
 	return rHeight;
 }
 
@@ -109,8 +156,8 @@ void Jet::free() {
 }
 
 void Jet::handleEvent(SDL_Event& ev) {
-    if(ev.type == SDL_KEYDOWN && ev.key.repeat == 0) {
-        switch(ev.key.keysym.sym) {
+    if (ev.type == SDL_KEYDOWN && ev.key.repeat == 0) {
+        switch (ev.key.keysym.sym) {
             case SDLK_UP: if (currentJetN == 1) isBoosted = true; break;
             case SDLK_LEFT: if (currentJetN == 1) degV -= 3; break;
             case SDLK_RIGHT: if (currentJetN == 1) degV += 3; break;
@@ -133,7 +180,7 @@ void Jet::handleEvent(SDL_Event& ev) {
                 }
                 break;
         }
-    } else if(ev.type == SDL_KEYUP && ev.key.repeat == 0) {
+    } else if (ev.type == SDL_KEYUP && ev.key.repeat == 0) {
         switch(ev.key.keysym.sym) {
             case SDLK_UP: if (currentJetN == 1) isBoosted = false; break;
             case SDLK_LEFT: if (currentJetN == 1) degV += 3; break;
@@ -236,8 +283,7 @@ bool init() {
         std::cout << SDL_GetError() << std::endl;
         success = false;
     } else {
-
-        if(!SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "1"))
+        if (!SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1"))
 		{
             std::cout << "LTF not enabled" << std::endl;
 		}
@@ -273,7 +319,7 @@ bool init() {
 bool loadMedia() {
     bool success = true;
     for (Jet& jet: jets) {
-        if(!jet.loadSprite("src/media/jet.png")) {
+        if (!jet.loadSprite("src/media/jet.png")) {
             std::cout << "Failed to load texture!" << std::endl;
             success = false;
         }
@@ -283,7 +329,7 @@ bool loadMedia() {
         std::cout << SDL_GetError() << std::endl;
         success = false;
     } else {
-        if (!score.loadFont("0 - 0")) {
+        if (!score.loadFont(formatScores())) {
             std::cout << SDL_GetError() << std::endl;
             success = false;
         }
@@ -321,9 +367,9 @@ int main(int argc, char* args[]) {
             } else {
                 bool quit;
                 SDL_Event ev;
-                while(!quit) {
-                    while(SDL_PollEvent(&ev) != 0) {
-                        if(ev.type == SDL_QUIT) {
+                while (!quit) {
+                    while (SDL_PollEvent(&ev) != 0) {
+                        if (ev.type == SDL_QUIT) {
                             quit = true;
                         }
                         for (Jet& jet: jets) {
@@ -334,14 +380,13 @@ int main(int argc, char* args[]) {
                         jet.move();
                         for (Bullet& bullet: jet.bullets) {
                             bullet.move();
-                            
                         }
                     }
                     SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
                     SDL_RenderClear(gRenderer);
                     score.render();
                     for (Jet& jet: jets) {
-                        for(Jet& otherJet: jets) {
+                        for (Jet& otherJet: jets) {
                             if (otherJet.currentJetN != jet.currentJetN) {
                                 for (Bullet& bullet: otherJet.bullets) {
                                     if (checkCollision(jet.boxCollider, bullet.boxCollider)) {

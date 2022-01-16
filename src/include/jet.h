@@ -5,7 +5,7 @@
 const uint16_t SCREEN_WIDTH = 640;
 const uint16_t SCREEN_HEIGHT = 640;
 
-const std::string relativeMediaPath = "./src/media/";
+const std::string RELATIVE_MEDIA_PATH = "./src/media/";
 
 // Entity class
 struct Entity {
@@ -32,7 +32,7 @@ struct AnimatedEntity {
 
     std::vector<SDL_Rect> clips;
     
-    int frame, frameOffset;
+    int frame, clipOffset, AnimationSpeedModifier;
 };
 
 class Bullet: public Entity, public AnimatedEntity {

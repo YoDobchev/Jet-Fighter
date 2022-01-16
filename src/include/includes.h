@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __INCLUDES_H
+#define __INCLUDES_H
 
 // Utilize SDL, SDL images, SDL fonts, standard IO, strings, math, vectors and jet.h
 #include <SDL2/SDL.h>
@@ -9,3 +10,5 @@
 #include <math.h>
 #include <vector>
 #include "jet.h"
+
+#endif

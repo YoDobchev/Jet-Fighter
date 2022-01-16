@@ -7,7 +7,7 @@ TODO:
     |x| Shooting
     | | Collision
         |x| Basics
-        | | More complex collision detection with the Separating Axis Theorem (SAT)
+        | | More complex collision detection using the Separating Axis Theorem (SAT)
     |x| TTF
     | | Asteroids
         | | Movement/Rotation
@@ -15,7 +15,7 @@ TODO:
         | | Ability to break into smaller pieces
             | | Logic
             | | Textures
-        | | Chance of a power-up upon explosion
+        | | Chance of a power-up spawn upon explosion
     | | Sound
         | | Sound effects
             | | Bullet
@@ -27,10 +27,11 @@ TODO:
             | | Asteroid explosion
         | | OST
     | | Animations
-        | | Bullet explosion
+        |X| Bullet explosion
         | | Jet explosion
         | | Asteroid explosion
     | | Start-up menu
+        | | Settings
     | | Multiplayer
         |x| Local (with only one keyboard)
         | | Network
@@ -42,7 +43,6 @@ TODO:
             | | Difficulty options
     | | Power-ups
     | | Gamemodes
-    | | Settings
 */
 
 // Include every header required.
@@ -60,6 +60,12 @@ int Jet::jetCount = 0;
 
 std::vector<Jet> jets;
 
+AnimatedEntity::AnimatedEntity() { 
+    frame = 0;
+}
+AnimatedEntity::~AnimatedEntity() {
+    frame = 0;
+}
 Entity::Entity() {
     rTexture = NULL;
     rWidth = 0;
@@ -99,13 +105,13 @@ bool Entity::loadSprite(std::string path) {
     return rTexture != NULL;   
 }
 
-void Entity::render(SDL_Rect* clip, SDL_Point* center, SDL_RendererFlip flip) {
+void Entity::render(SDL_Rect* clip) {
     SDL_Rect renderRect = {posX, posY, rWidth, rHeight};
     if (clip != NULL) {
         renderRect.w = clip->w;
         renderRect.h = clip->h;
     }
-    SDL_RenderCopyEx(gRenderer, rTexture, clip, &renderRect, deg, center, flip);
+    SDL_RenderCopyEx(gRenderer, rTexture, clip, &renderRect, deg, NULL, SDL_FLIP_NONE);
 }
 
 int Entity::getWidth() {
@@ -130,6 +136,7 @@ Jet::Jet() {
     boxCollider.w = 22;
     boxCollider.h = 16;
     score = 0;
+    frameOffset = 24;
 }
 
 Jet::~Jet() {
@@ -165,7 +172,7 @@ void Jet::handleEvent(SDL_Event& ev) {
                 if (currentJetN == 1) {
                     float radians = deg * M_PI/180;
                     this->bullets.emplace_back(posX, posY, deg, 7 * sin(radians), -7 * cos(radians), currentJetN - 1);
-                    this->bullets[this->bullets.size() - 1].loadSprite("src/media/bullet.png");
+                    this->bullets[this->bullets.size() - 1].loadSprite(relativeMediaPath + "bullet-sheet.png");
                 }
                 break;
 
@@ -176,7 +183,7 @@ void Jet::handleEvent(SDL_Event& ev) {
                 if (currentJetN == 2) {
                     float radians = deg * M_PI/180;
                     this->bullets.emplace_back(posX, posY, deg, 7 * sin(radians), -7 * cos(radians), currentJetN - 1);
-                    this->bullets[this->bullets.size() - 1].loadSprite("src/media/bullet.png");
+                    this->bullets[this->bullets.size() - 1].loadSprite(relativeMediaPath + "bullet-sheet.png");
                 }
                 break;
         }
@@ -218,20 +225,6 @@ void Jet::move() {
     deg += degV;
 }
 
-void Bullet::free() {
-     if (rTexture != NULL) {
-        rTexture = NULL;
-        rWidth = 0;
-        rHeight = 0;
-        posX = 0;
-        posY = 0;
-        deg = 0;
-        velX = 0;
-        velY = 0;
-        jets[jetN].bullets.erase(jets[jetN].bullets.begin());
-     }
-}
-
 Bullet::Bullet(int posX, int posY, int deg, int velX, int velY, int jetN) {
     this->deg = deg; this->velX = velX; this->velY = velY; this->jetN = jetN;
     float radians = deg * M_PI/180;
@@ -239,6 +232,26 @@ Bullet::Bullet(int posX, int posY, int deg, int velX, int velY, int jetN) {
     this->posY = (posY + jets[jetN].rHeight/2 - jets[jetN].rHeight/2 * cos(radians)) - 3;
     boxCollider.w = 6;
     boxCollider.h = 6;
+    frameOffset = 8;
+    for (int i = 0; i < 48 / frameOffset; ++i) {
+        clips.emplace_back();
+        clips[i].x = i * frameOffset;
+        clips[i].y = 0;
+        clips[i].w = 8;
+        clips[i].h = 8;
+    }
+}
+
+void Bullet::free() {
+     if (rTexture != NULL) {
+        rWidth = 0;
+        rHeight = 0;
+        posX = 0;
+        posY = 0;
+        deg = 0;
+        rTexture = NULL;
+        jets[jetN].bullets.erase(jets[jetN].bullets.begin());
+     }
 }
 
 void Bullet::move() {
@@ -319,7 +332,7 @@ bool init() {
 bool loadMedia() {
     bool success = true;
     for (Jet& jet: jets) {
-        if (!jet.loadSprite("src/media/jet.png")) {
+        if (!jet.loadSprite(relativeMediaPath + "jet.png")) {
             std::cout << "Failed to load texture!" << std::endl;
             success = false;
         }
@@ -334,7 +347,6 @@ bool loadMedia() {
             success = false;
         }
     }
-
     return success;
 }
 
@@ -390,8 +402,11 @@ int main(int argc, char* args[]) {
                             if (otherJet.currentJetN != jet.currentJetN) {
                                 for (Bullet& bullet: otherJet.bullets) {
                                     if (checkCollision(jet.boxCollider, bullet.boxCollider)) {
-                                        bullet.free();
-                                        jet.score++;
+                                        if (bullet.frame == 0)
+                                            jet.score++;
+                                        bullet.frame++;
+                                        bullet.velX = 0;
+                                        bullet.velY = 0;
                                         score.loadFont(formatScores());
                                     }
                                 }
@@ -399,13 +414,14 @@ int main(int argc, char* args[]) {
                         }
                     }
                     for (Jet& jet: jets) {
-                        jet.render();
-                        // SDL_SetRenderDrawColor( gRenderer, 0x00, 0x00, 0x00, 0xFF );
-                        // SDL_RenderDrawRect(gRenderer, &jet.boxCollider);
-                        // SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xFF, 0xFF );
                         for (Bullet& bullet: jet.bullets) {
-                            bullet.render();
+                            if (bullet.frame != 0 && bullet.frame <= 48)
+                                bullet.frame++;
+                            if (bullet.frame >= 48)
+                                bullet.free();
+                            bullet.render(&bullet.clips[bullet.frame / 8]);
                         }
+                        jet.render(&jet.clips[jet.frame / 8]);
                     }
                     SDL_RenderPresent(gRenderer);   
                 }

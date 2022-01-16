@@ -1,10 +1,13 @@
-#pragma once
+#ifndef __JET_H
+#define __JET_H
 
 // Screen dimensions
 const uint16_t SCREEN_WIDTH = 640;
 const uint16_t SCREEN_HEIGHT = 640;
 
-// Texture class
+const std::string relativeMediaPath = "./src/media/";
+
+// Entity class
 struct Entity {
     Entity();
 
@@ -12,7 +15,7 @@ struct Entity {
 
     virtual void free();
 
-    void render(SDL_Rect* clip = NULL, SDL_Point* center = NULL, SDL_RendererFlip flip = SDL_FLIP_NONE);
+    void render(SDL_Rect* clip = NULL);
 
     int getWidth();
     int getHeight();
@@ -22,7 +25,17 @@ struct Entity {
     SDL_Texture* rTexture;
 };
 
-class Bullet: public Entity {
+struct AnimatedEntity {
+    AnimatedEntity();
+
+    ~AnimatedEntity();
+
+    std::vector<SDL_Rect> clips;
+    
+    int frame, frameOffset;
+};
+
+class Bullet: public Entity, public AnimatedEntity {
     public:
         Bullet(int posX, int posY, int deg, int velX, int velY, int jetN);
 
@@ -31,12 +44,13 @@ class Bullet: public Entity {
         void move();
 
         SDL_Rect boxCollider;
+ 
+        float velX, velY;
     private:
         int jetN;
-        float velX, velY;
 };
 
-class Jet: public Entity {
+class Jet: public Entity, public AnimatedEntity {
     public:
         Jet();
     
@@ -74,3 +88,5 @@ bool loadMedia();
 bool checkCollision(SDL_Rect a, SDL_Rect b);
 
 void close();
+
+#endif
